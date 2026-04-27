@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #eef5ff;
+  --color-primary-100: #d9e8ff;
+  --color-primary-200: #bcd7ff;
+  --color-primary-300: #8abbff;
+  --color-primary-400: #5396ff;
+  --color-primary-500: #2b73f6;
+  --color-primary-600: #1a56e5;
+  --color-primary-700: #1343d1;
+  --color-primary-800: #1637ab;
+  --color-primary-900: #173388;
+
+  --color-surface-0: #ffffff;
+  --color-surface-50: #f8fafc;
+  --color-surface-100: #f1f5f9;
+  --color-surface-200: #e2e8f0;
+  --color-surface-300: #cbd5e1;
+  --color-surface-400: #94a3b8;
+  --color-surface-500: #64748b;
+  --color-surface-600: #475569;
+  --color-surface-700: #334155;
+  --color-surface-800: #1e293b;
+  --color-surface-900: #0f172a;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-surface-50);
+  color: var(--color-surface-900);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.mantine-AppShell-main {
+  background-color: var(--color-surface-50);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-300);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-surface-400);
+}
+
+/* Org chart connector lines */
+.org-connector {
+  position: relative;
+}
+
+.org-connector::before {
+  content: '';
+  position: absolute;
+  top: -16px;
+  left: 24px;
+  width: 2px;
+  height: 16px;
+  background: var(--color-surface-300);
+}
+
+.org-children {
+  position: relative;
+}
+
+.org-children::before {
+  content: '';
+  position: absolute;
+  top: -16px;
+  left: 24px;
+  width: 2px;
+  height: 16px;
+  background: var(--color-surface-300);
+}
