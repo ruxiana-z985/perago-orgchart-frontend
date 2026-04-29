@@ -23,7 +23,7 @@ import { useNavigate } from 'react-router-dom'
 import { useGetPositionQuery } from '../../features/positions/positionsApi.js'
 import { formatDate } from '../../lib/format.js'
 
-export function OrgChartDetailPanel({ positionId, onClose }) {
+export function OrgChartDetailPanel({ positionId, onClose, onCreateChild, onEdit, onDelete }) {
   const navigate = useNavigate()
   const { data, isLoading, error } = useGetPositionQuery(positionId, {
     skip: !positionId,
@@ -148,27 +148,27 @@ export function OrgChartDetailPanel({ positionId, onClose }) {
                   variant="light"
                   color="green"
                   fullWidth
-                  onClick={() => navigate(`/requests/new?action=create&parent=${position.id}`)}
+                  onClick={() => onCreateChild?.(position)}
                 >
-                  Request New Child
+                  Add Child Position
                 </Button>
                 <Button
                   leftSection={<IconEdit size={16} />}
                   variant="light"
                   color="blue"
                   fullWidth
-                  onClick={() => navigate(`/requests/new?action=update&target=${position.id}`)}
+                  onClick={() => onEdit?.(position)}
                 >
-                  Request Update
+                  Edit Position
                 </Button>
                 <Button
                   leftSection={<IconTrash size={16} />}
                   variant="light"
                   color="red"
                   fullWidth
-                  onClick={() => navigate(`/requests/new?action=delete&target=${position.id}`)}
+                  onClick={() => onDelete?.(position)}
                 >
-                  Request Delete
+                  Delete Position
                 </Button>
                 <Button
                   leftSection={<IconExternalLink size={16} />}

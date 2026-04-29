@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   Box,
   Button,
@@ -11,16 +12,19 @@ import {
   IconRefresh,
   IconPlus,
   IconLayoutList,
-  IconSitemap,
 } from '@tabler/icons-react'
 import { useNavigate } from 'react-router-dom'
-import { useGetTreeQuery } from '../features/positions/positionsApi'
+import { notifications } from '@mantine/notifications'
+import { useGetTreeQuery, useCreatePositionMutation, useUpdatePositionMutation, useDeletePositionMutation } from '../features/positions/positionsApi'
 import { useAppSelector, useAppDispatch } from '../app/hooks'
 import { setSelectedPositionId } from '../features/ui/uiSlice'
 import { OrgChartTree } from '../components/chart/OrgChartTree'
 import { OrgChartDetailPanel } from '../components/chart/OrgChartDetailPanel'
 import { ErrorState } from '../components/feedback/ErrorState'
 import { EmptyState } from '../components/feedback/EmptyState'
+import { PositionFormModal } from '../components/modals/PositionFormModal'
+import { DeleteConfirmModal } from '../components/modals/DeleteConfirmModal'
+import { getErrorMessage } from '../lib/errors'
 
 export function OrgChartPage() {
   const navigate = useNavigate()
@@ -28,12 +32,88 @@ export function OrgChartPage() {
   const selectedId = useAppSelector((state) => state.ui.selectedPositionId)
   const { data, isLoading, error, refetch } = useGetTreeQuery()
 
+  const [createPosition] = useCreatePositionMutation()
+  const [updatePosition] = useUpdatePositionMutation()
+  const [deletePosition] = useDeletePositionMutation()
+
+  // Modal states
+  const [modalMode, setModalMode] = useState(null) // 'create' | 'edit' | 'delete'
+  const [modalPosition, setModalPosition] = useState(null) // position context for the modal
+
   const handleSelect = (id) => {
     dispatch(setSelectedPositionId(id))
   }
 
   const handleClosePanel = () => {
     dispatch(setSelectedPositionId(null))
+  }
+
+  const handleCreateChild = (parent) => {
+    setModalPosition(parent)
+    setModalMode('create')
+  }
+
+  const handleEdit = (position) => {
+    setModalPosition(position)
+    setModalMode('edit')
+  }
+
+  const handleDelete = (position) => {
+    setModalPosition(position)
+    setModalMode('delete')
+  }
+
+  const handleCloseModal = () => {
+    setModalMode(null)
+    setModalPosition(null)
+  }
+
+  const handleCreateSubmit = async (values) => {
+    try {
+      await createPosition({
+        name: values.name,
+        description: values.description,
+        parentId: modalPosition?.id || null,
+      }).unwrap()
+      notifications.show({ title: 'Created', message: 'Position created successfully.', color: 'green' })
+      handleCloseModal()
+    } catch (err) {
+      notifications.show({ title: 'Failed', message: getErrorMessage(err), color: 'red' })
+      throw err // re-throw so the form knows it failed
+    }
+  }
+
+  const handleEditSubmit = async (values) => {
+    try {
+      await updatePosition({
+        id: modalPosition.id,
+        name: values.name,
+        description: values.description,
+        parentId: values.parentId ?? undefined,
+      }).unwrap()
+      notifications.show({ title: 'Updated', message: 'Position updated successfully.', color: 'green' })
+      handleCloseModal()
+    } catch (err) {
+      notifications.show({ title: 'Failed', message: getErrorMessage(err), color: 'red' })
+      throw err
+    }
+  }
+
+  const handleDeleteConfirm = async (reassignmentStrategy) => {
+    try {
+      await deletePosition({
+        id: modalPosition.id,
+        reassignmentStrategy: reassignmentStrategy || undefined,
+      }).unwrap()
+      notifications.show({ title: 'Deleted', message: 'Position deleted successfully.', color: 'green' })
+      if (selectedId === modalPosition.id) {
+        dispatch(setSelectedPositionId(null))
+      }
+      handleCloseModal()
+    } catch (err) {
+      notifications.show({ title: 'Failed', message: getErrorMessage(err), color: 'red' })
+      throw err
+    }
   }
 
   const treeData = data?.data || []
@@ -48,7 +128,7 @@ export function OrgChartPage() {
               Organization Chart
             </Text>
             <Text c="dimmed" size="sm">
-              Browse current position hierarchy
+              Browse and manage position hierarchy
             </Text>
           </div>
           <Group gap="sm">
@@ -64,9 +144,12 @@ export function OrgChartPage() {
               variant="light"
               size="sm"
               leftSection={<IconPlus size={16} />}
-              onClick={() => navigate('/requests/new?action=create')}
+              onClick={() => {
+                setModalPosition(null)
+                setModalMode('create')
+              }}
             >
-              Request Change
+              Add Position
             </Button>
             <ActionIcon
               variant="default"
@@ -82,7 +165,6 @@ export function OrgChartPage() {
 
       {/* Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Tree Area */}
         <Box className={`flex-1 overflow-auto px-6 pb-6 ${selectedId ? 'pr-0' : ''}`}>
           {isLoading && (
             <Stack gap="md" className="py-4">
@@ -114,13 +196,39 @@ export function OrgChartPage() {
           )}
         </Box>
 
-        {/* Detail Panel */}
         {selectedId && (
           <div className="w-full max-w-md shrink-0 border-l border-surface-200">
-            <OrgChartDetailPanel positionId={selectedId} onClose={handleClosePanel} />
+            <OrgChartDetailPanel
+              positionId={selectedId}
+              onClose={handleClosePanel}
+              onCreateChild={handleCreateChild}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
           </div>
         )}
       </div>
+
+      {/* Create/Edit Modal */}
+      {(modalMode === 'create' || modalMode === 'edit') && (
+        <PositionFormModal
+          opened={true}
+          onClose={handleCloseModal}
+          mode={modalMode}
+          position={modalPosition}
+          onSubmit={modalMode === 'create' ? handleCreateSubmit : handleEditSubmit}
+        />
+      )}
+
+      {/* Delete Modal */}
+      {modalMode === 'delete' && modalPosition && (
+        <DeleteConfirmModal
+          opened={true}
+          onClose={handleCloseModal}
+          position={modalPosition}
+          onConfirm={handleDeleteConfirm}
+        />
+      )}
     </div>
   )
 }

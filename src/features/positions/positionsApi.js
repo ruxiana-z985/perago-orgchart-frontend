@@ -6,6 +6,9 @@ export const positionsApi = createApi({
   baseQuery: axiosBaseQuery(),
   tagTypes: ['Position', 'Tree', 'Children', 'Search'],
   endpoints: (builder) => ({
+    // =====================
+    // READ OPERATIONS
+    // =====================
     getTree: builder.query({
       query: () => ({ url: '/positions?format=tree', method: 'GET' }),
       providesTags: ['Tree'],
@@ -34,6 +37,44 @@ export const positionsApi = createApi({
       query: (q) => ({ url: '/search', method: 'GET', params: { q } }),
       providesTags: ['Search'],
     }),
+
+    // =====================
+    // WRITE OPERATIONS (NEW)
+    // =====================
+    createPosition: builder.mutation({
+      query: (body) => ({
+        url: '/positions',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Position', 'Tree', 'Search'],
+    }),
+    updatePosition: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/positions/${id}`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Position', id },
+        'Tree',
+        'Position',
+        'Search',
+      ],
+    }),
+    deletePosition: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/positions/${id}`,
+        method: 'DELETE',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Position', id },
+        'Tree',
+        'Position',
+        'Search',
+      ],
+    }),
   }),
 })
 
@@ -45,4 +86,7 @@ export const {
   useSearchPositionsQuery,
   useLazySearchPositionsQuery,
   useLazyGetPositionQuery,
+  useCreatePositionMutation,
+  useUpdatePositionMutation,
+  useDeletePositionMutation,
 } = positionsApi

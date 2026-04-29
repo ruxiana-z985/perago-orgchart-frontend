@@ -14,9 +14,6 @@ import {
 import { useAppSelector, useAppDispatch } from '../../app/hooks.js'
 import { toggleExpandedNode } from '../../features/ui/uiSlice.js'
 
-/**
- * Single org chart node with expand/collapse and click selection.
- */
 export function OrgChartNode({ node, selectedId, onSelect, level = 0 }) {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
@@ -25,8 +22,6 @@ export function OrgChartNode({ node, selectedId, onSelect, level = 0 }) {
   const isSelected = selectedId === node.id
   const hasChildren = node.children && node.children.length > 0
 
-  console.log('Node:', node.name, 'hasChildren:', hasChildren, 'children:', node.children?.length)
-
   const handleToggle = (e) => {
     e.stopPropagation()
     dispatch(toggleExpandedNode(node.id))
@@ -34,11 +29,6 @@ export function OrgChartNode({ node, selectedId, onSelect, level = 0 }) {
 
   const handleClick = () => {
     onSelect(node.id)
-  }
-
-  const handleRequestChild = (e) => {
-    e.stopPropagation()
-    navigate(`/requests/new?action=create&parent=${node.id}`)
   }
 
   return (
@@ -52,7 +42,6 @@ export function OrgChartNode({ node, selectedId, onSelect, level = 0 }) {
         }`}
         style={{ marginLeft: level > 0 ? 24 : 0 }}
       >
-        {/* Connector line from parent */}
         {level > 0 && (
           <div
             className="absolute -left-3 top-6 w-3 h-px bg-surface-300"
@@ -99,24 +88,21 @@ export function OrgChartNode({ node, selectedId, onSelect, level = 0 }) {
         </div>
       </Box>
 
-      {/* Children - always render if hasChildren */}
       {node.children && node.children.length > 0 && (
         <Box className="relative pt-3 pl-6" style={{ display: isExpanded ? 'block' : 'none' }}>
-          {/* Vertical line connecting children */}
           <div className="absolute left-3 top-0 bottom-0 w-px bg-surface-200" />
 
-            {node.children.map((child) => (
-              <div key={child.id} className="relative mb-2">
-                {/* Horizontal connector to child */}
-                <div className="absolute -left-3 top-6 w-3 h-px bg-surface-200" />
-                <OrgChartNode
-                  node={child}
-                  selectedId={selectedId}
-                  onSelect={onSelect}
-                  level={level + 1}
-                />
-              </div>
-            ))}
+          {node.children.map((child) => (
+            <div key={child.id} className="relative mb-2">
+              <div className="absolute -left-3 top-6 w-3 h-px bg-surface-200" />
+              <OrgChartNode
+                node={child}
+                selectedId={selectedId}
+                onSelect={onSelect}
+                level={level + 1}
+              />
+            </div>
+          ))}
         </Box>
       )}
     </Box>

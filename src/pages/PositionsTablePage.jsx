@@ -24,11 +24,15 @@ import {
   IconUserPlus,
 } from '@tabler/icons-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useGetPositionsQuery } from '../features/positions/positionsApi'
+import { notifications } from '@mantine/notifications'
+import { useGetPositionsQuery, useDeletePositionMutation } from '../features/positions/positionsApi'
 import { formatDateShort } from '../lib/format'
+import { getErrorMessage } from '../lib/errors'
 import { ErrorState } from '../components/feedback/ErrorState'
 import { EmptyState } from '../components/feedback/EmptyState'
 import { LoadingState } from '../components/feedback/LoadingState'
+import { PositionFormModal } from '../components/modals/PositionFormModal'
+import { DeleteConfirmModal } from '../components/modals/DeleteConfirmModal'
 
 const sortOptions = [
   { value: 'name', label: 'Name' },
@@ -53,6 +57,12 @@ export function PositionsTablePage() {
   const search = searchParams.get('search') || ''
 
   const [searchInput, setSearchInput] = useState(search)
+
+  // Modal states
+  const [modalMode, setModalMode] = useState(null) // 'create' | 'edit' | 'delete'
+  const [selectedPosition, setSelectedPosition] = useState(null)
+
+  const [deletePosition] = useDeletePositionMutation()
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -91,25 +101,51 @@ export function PositionsTablePage() {
     setSearchParams(next, { replace: true })
   }
 
+  const handleCreate = () => {
+    setSelectedPosition(null)
+    setModalMode('create')
+  }
+
+  const handleEdit = (pos) => {
+    setSelectedPosition(pos)
+    setModalMode('edit')
+  }
+
+  const handleDelete = (pos) => {
+    setSelectedPosition(pos)
+    setModalMode('delete')
+  }
+
+  const handleCloseModal = () => {
+    setModalMode(null)
+    setSelectedPosition(null)
+  }
+
+  const handleDeleteConfirm = async (reassignmentStrategy) => {
+    try {
+      await deletePosition({
+        id: selectedPosition.id,
+        reassignmentStrategy: reassignmentStrategy || undefined,
+      }).unwrap()
+      notifications.show({ title: 'Deleted', message: 'Position deleted.', color: 'green' })
+      handleCloseModal()
+      refetch()
+    } catch (err) {
+      notifications.show({ title: 'Failed', message: getErrorMessage(err), color: 'red' })
+      throw err
+    }
+  }
+
   return (
     <Box className="p-6">
       <Group justify="space-between" mb="md" wrap="wrap" gap="sm">
         <div>
-          <Text fw={700} size="xl" className="tracking-tight">
-            Positions
-          </Text>
-          <Text c="dimmed" size="sm">
-            Browse all active positions in list view
-          </Text>
+          <Text fw={700} size="xl" className="tracking-tight">Positions</Text>
+          <Text c="dimmed" size="sm">Browse all active positions in list view</Text>
         </div>
         <Group gap="sm">
-          <Button
-            variant="light"
-            size="sm"
-            leftSection={<IconPlus size={16} />}
-            onClick={() => navigate('/requests/new?action=create')}
-          >
-            New Request
+          <Button variant="light" size="sm" leftSection={<IconPlus size={16} />} onClick={handleCreate}>
+            Add Position
           </Button>
           <ActionIcon variant="default" size="sm" onClick={refetch} title="Refresh">
             <IconRefresh size={16} />
@@ -145,18 +181,8 @@ export function PositionsTablePage() {
           />
         </Group>
 
-        {isLoading && (
-          <Box p="md">
-            <LoadingState count={5} />
-          </Box>
-        )}
-
-        {error && (
-          <Box p="md">
-            <ErrorState error={error} onRetry={refetch} />
-          </Box>
-        )}
-
+        {isLoading && <Box p="md"><LoadingState count={5} /></Box>}
+        {error && <Box p="md"><ErrorState error={error} onRetry={refetch} /></Box>}
         {!isLoading && !error && positions.length === 0 && (
           <Box p="xl">
             <EmptyState
@@ -166,7 +192,6 @@ export function PositionsTablePage() {
             />
           </Box>
         )}
-
         {!isLoading && !error && positions.length > 0 && (
           <Table striped highlightOnHover className="text-sm">
             <Table.Thead>
@@ -183,74 +208,31 @@ export function PositionsTablePage() {
             <Table.Tbody>
               {positions.map((pos) => (
                 <Table.Tr key={pos.id} className="cursor-pointer" onClick={() => navigate(`/positions/${pos.id}`)}>
-                  <Table.Td>
-                    <Text fw={500}>{pos.name}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm" c="dimmed" lineClamp={1} className="max-w-xs">
-                      {pos.description}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm" c="dimmed">
-                      {pos.path}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge variant="light" color="blue" size="sm">
-                      {pos.depth}
-                    </Badge>
-                  </Table.Td>
+                  <Table.Td><Text fw={500}>{pos.name}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="dimmed" lineClamp={1} className="max-w-xs">{pos.description}</Text></Table.Td>
+                  <Table.Td><Text size="sm" c="dimmed">{pos.path}</Text></Table.Td>
+                  <Table.Td><Badge variant="light" color="blue" size="sm">{pos.depth}</Badge></Table.Td>
                   <Table.Td>{pos.childrenCount}</Table.Td>
                   <Table.Td>{formatDateShort(pos.createdAt)}</Table.Td>
                   <Table.Td>
                     <Menu shadow="md" width={200} position="bottom-end">
                       <Menu.Target>
-                        <ActionIcon
-                          variant="subtle"
-                          size="sm"
-                          onClick={(e) => e.stopPropagation()}
-                        >
+                        <ActionIcon variant="subtle" size="sm" onClick={(e) => e.stopPropagation()}>
                           <IconDots size={16} />
                         </ActionIcon>
                       </Menu.Target>
                       <Menu.Dropdown>
-                        <Menu.Item
-                          leftSection={<IconEye size={14} />}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            navigate(`/positions/${pos.id}`)
-                          }}
-                        >
+                        <Menu.Item leftSection={<IconEye size={14} />} onClick={(e) => { e.stopPropagation(); navigate(`/positions/${pos.id}`) }}>
                           View Details
                         </Menu.Item>
-                        <Menu.Item
-                          leftSection={<IconUserPlus size={14} />}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            navigate(`/requests/new?action=create&parent=${pos.id}`)
-                          }}
-                        >
-                          Request New Child
+                        <Menu.Item leftSection={<IconUserPlus size={14} />} onClick={(e) => { e.stopPropagation(); setSelectedPosition(pos); setModalMode('create') }}>
+                          Add Child
                         </Menu.Item>
-                        <Menu.Item
-                          leftSection={<IconEdit size={14} />}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            navigate(`/requests/new?action=update&target=${pos.id}`)
-                          }}
-                        >
-                          Request Update
+                        <Menu.Item leftSection={<IconEdit size={14} />} onClick={(e) => { e.stopPropagation(); handleEdit(pos) }}>
+                          Edit
                         </Menu.Item>
-                        <Menu.Item
-                          leftSection={<IconTrash size={14} />}
-                          color="red"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            navigate(`/requests/new?action=delete&target=${pos.id}`)
-                          }}
-                        >
-                          Request Delete
+                        <Menu.Item leftSection={<IconTrash size={14} />} color="red" onClick={(e) => { e.stopPropagation(); handleDelete(pos) }}>
+                          Delete
                         </Menu.Item>
                       </Menu.Dropdown>
                     </Menu>
@@ -260,18 +242,37 @@ export function PositionsTablePage() {
             </Table.Tbody>
           </Table>
         )}
-
         {pagination && pagination.totalPages > 1 && (
           <Group p="md" justify="center">
-            <Pagination
-              value={page}
-              onChange={(p) => updateParam('page', p)}
-              total={pagination.totalPages}
-              size="sm"
-            />
+            <Pagination value={page} onChange={(p) => updateParam('page', p)} total={pagination.totalPages} size="sm" />
           </Group>
         )}
       </Paper>
+
+      {/* Modals */}
+      {(modalMode === 'create' || modalMode === 'edit') && (
+        <PositionFormModal
+          opened={true}
+          onClose={handleCloseModal}
+          mode={modalMode}
+          position={modalMode === 'edit' ? selectedPosition : selectedPosition}
+          onSubmit={async (values) => {
+            // This is handled by the parent but we don't need it here since PositionFormModal
+            // doesn't do API calls itself - the parent handles it.
+            // For table page, we just close and refetch
+            handleCloseModal()
+            refetch()
+          }}
+        />
+      )}
+      {modalMode === 'delete' && selectedPosition && (
+        <DeleteConfirmModal
+          opened={true}
+          onClose={handleCloseModal}
+          position={selectedPosition}
+          onConfirm={handleDeleteConfirm}
+        />
+      )}
     </Box>
   )
 }
